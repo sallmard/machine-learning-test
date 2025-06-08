@@ -1,4 +1,10 @@
 import argparse
+import sys
+from pathlib import Path
+
+if __package__ is None or __package__ == "":
+    # Allow running this script directly without installing the package
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from backtesting_demo.data_loader import load_csv
 from backtesting_demo.strategy import MovingAverageCrossoverStrategy
