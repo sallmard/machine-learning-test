@@ -1,33 +1,32 @@
+import csv
 import io
 from pathlib import Path
 from urllib.parse import urlparse
-
-import pandas as pd
-import requests
-import yfinance as yf
+from datetime import datetime
+from urllib.request import urlopen
 
 
-def load_csv(source: str) -> pd.DataFrame:
-    """Load OHLCV data from a CSV file, URL, or ticker symbol."""
+def load_csv(source: str) -> dict:
+    """Load OHLCV data from a local CSV file or URL into dictionaries of lists."""
     file_path = Path(source)
 
     if file_path.exists():
-        df = pd.read_csv(file_path, parse_dates=["Date"])
+        raw = file_path.read_text()
     else:
         parsed = urlparse(source)
         if parsed.scheme and parsed.netloc:
-            resp = requests.get(source)
-            resp.raise_for_status()
-            df = pd.read_csv(io.StringIO(resp.text), parse_dates=["Date"])
+            with urlopen(source) as resp:
+                raw = resp.read().decode()
         else:
-            data = yf.download(source, progress=False)
-            if data.empty:
-                raise FileNotFoundError(
-                    f"Could not find data file or download symbol: {source}"
-                )
-            data.index.name = "Date"
-            data.reset_index(inplace=True)
-            df = data
+            raise FileNotFoundError(f"Could not find data file: {source}")
 
-    df = df.sort_values("Date").reset_index(drop=True)
-    return df
+    reader = csv.DictReader(io.StringIO(raw))
+    data = {key: [] for key in reader.fieldnames}
+    for row in reader:
+        data["Date"].append(datetime.fromisoformat(row["Date"]))
+        data["Open"].append(float(row["Open"]))
+        data["High"].append(float(row["High"]))
+        data["Low"].append(float(row["Low"]))
+        data["Close"].append(float(row["Close"]))
+        data["Volume"].append(int(row["Volume"]))
+    return data

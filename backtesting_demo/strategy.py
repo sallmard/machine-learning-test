@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
-import pandas as pd
+from typing import Dict, List
 
 
 class Strategy(ABC):
     """Base class for trading strategies."""
 
     @abstractmethod
-    def generate_signals(self, data: pd.DataFrame) -> pd.Series:
-        """Return a pandas Series of trading signals (1 for buy, -1 for sell, 0 for hold)."""
+    def generate_signals(self, data: Dict[str, List[float]]) -> List[int]:
+        """Return a list of trading signals (1 for buy, -1 for sell, 0 for hold)."""
         pass
 
 
@@ -20,16 +20,22 @@ class MovingAverageCrossoverStrategy(Strategy):
         self.fast = fast
         self.slow = slow
 
-    def generate_signals(self, data: pd.DataFrame) -> pd.Series:
-        df = data.copy()
-        df["fast_ma"] = df["Close"].rolling(window=self.fast, min_periods=1).mean()
-        df["slow_ma"] = df["Close"].rolling(window=self.slow, min_periods=1).mean()
-        signals = pd.Series(0, index=df.index)
+    def generate_signals(self, data: Dict[str, List[float]]) -> List[int]:
+        close = data["Close"]
+        fast_ma: List[float] = []
+        slow_ma: List[float] = []
+        for i in range(len(close)):
+            fast_window = close[max(0, i - self.fast + 1): i + 1]
+            slow_window = close[max(0, i - self.slow + 1): i + 1]
+            fast_ma.append(sum(fast_window) / len(fast_window))
+            slow_ma.append(sum(slow_window) / len(slow_window))
+
+        signals = [0] * len(close)
         prev_signal = 0
-        for i in range(1, len(df)):
-            if df.loc[i - 1, "fast_ma"] <= df.loc[i - 1, "slow_ma"] and df.loc[i, "fast_ma"] > df.loc[i, "slow_ma"]:
+        for i in range(1, len(close)):
+            if fast_ma[i - 1] <= slow_ma[i - 1] and fast_ma[i] > slow_ma[i]:
                 prev_signal = 1
-            elif df.loc[i - 1, "fast_ma"] >= df.loc[i - 1, "slow_ma"] and df.loc[i, "fast_ma"] < df.loc[i, "slow_ma"]:
+            elif fast_ma[i - 1] >= slow_ma[i - 1] and fast_ma[i] < slow_ma[i]:
                 prev_signal = -1
-            signals.iloc[i] = prev_signal
+            signals[i] = prev_signal
         return signals

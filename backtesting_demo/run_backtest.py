@@ -25,7 +25,7 @@ def main():
     print(f"Final portfolio value: {backtester.portfolio_value:.2f}")
     print("Trades:")
     for trade in backtester.trades:
-        date = df.loc[trade["index"], "Date"].date()
+        date = df["Date"][trade["index"]].date()
         print(f"  {date} {trade['type']} {trade['qty']} @ {trade['price']}")
 
 
